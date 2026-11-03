@@ -16,6 +16,7 @@ defaults:
   run:
     shell: bash
 
+    
 jobs:
   dev:
     runs-on: [self-hosted, Linux, X64, liquibase-rds]
