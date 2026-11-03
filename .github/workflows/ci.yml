@@ -22,7 +22,7 @@ jobs:
     timeout-minutes: 30
     environment: dev
     env:
-      LIQUIBASE_COMMAND_URL: jdbc:postgresql://${{ vars.DB_HOST }}:${{ vars.DB_PORT || '5432' }}/${{ vars.DB_NAME }}?sslmode=verify-full&sslrootcert=/opt/liquibase/certs/global-bundle.pem&currentSchema=app&connectTimeout=15
+      LIQUIBASE_COMMAND_URL: jdbc:postgresql://${{ vars.DB_HOST }}:${{ vars.DB_PORT || '5432' }}/${{ vars.DB_NAME }}?sslmode=require&currentSchema=app&connectTimeout=15
       LIQUIBASE_COMMAND_USERNAME: ${{ secrets.DB_USERNAME }}
       LIQUIBASE_COMMAND_PASSWORD: ${{ secrets.DB_PASSWORD }}
     steps:
@@ -50,7 +50,7 @@ jobs:
     timeout-minutes: 30
     environment: uat
     env:
-      LIQUIBASE_COMMAND_URL: jdbc:postgresql://${{ vars.DB_HOST }}:${{ vars.DB_PORT || '5432' }}/${{ vars.DB_NAME }}?sslmode=verify-full&sslrootcert=/opt/liquibase/certs/global-bundle.pem&currentSchema=app&connectTimeout=15
+      LIQUIBASE_COMMAND_URL: jdbc:postgresql://${{ vars.DB_HOST }}:${{ vars.DB_PORT || '5432' }}/${{ vars.DB_NAME }}?sslmode=require&currentSchema=app&connectTimeout=15
       LIQUIBASE_COMMAND_USERNAME: ${{ secrets.DB_USERNAME }}
       LIQUIBASE_COMMAND_PASSWORD: ${{ secrets.DB_PASSWORD }}
     steps:
@@ -78,7 +78,7 @@ jobs:
     timeout-minutes: 30
     environment: prod
     env:
-      LIQUIBASE_COMMAND_URL: jdbc:postgresql://${{ vars.DB_HOST }}:${{ vars.DB_PORT || '5432' }}/${{ vars.DB_NAME }}?sslmode=verify-full&sslrootcert=/opt/liquibase/certs/global-bundle.pem&currentSchema=app&connectTimeout=15
+      LIQUIBASE_COMMAND_URL: jdbc:postgresql://${{ vars.DB_HOST }}:${{ vars.DB_PORT || '5432' }}/${{ vars.DB_NAME }}?sslmode=require&currentSchema=app&connectTimeout=15
       LIQUIBASE_COMMAND_USERNAME: ${{ secrets.DB_USERNAME }}
       LIQUIBASE_COMMAND_PASSWORD: ${{ secrets.DB_PASSWORD }}
     steps:
