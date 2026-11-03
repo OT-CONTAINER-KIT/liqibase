@@ -22,9 +22,11 @@ jobs:
     timeout-minutes: 30
     environment: dev
     env:
-      LIQUIBASE_COMMAND_URL: jdbc:postgresql://${{ vars.DB_HOST }}:${{ vars.DB_PORT || '5432' }}/${{ vars.DB_NAME }}?sslmode=require&currentSchema=app&connectTimeout=15
+      LIQUIBASE_COMMAND_URL: jdbc:postgresql://${{ vars.DB_HOST }}:${{ vars.DB_PORT || '5432' }}/${{ vars.DB_NAME }}?sslmode=require&currentSchema=${{ vars.DB_SCHEMA || 'app' }}&connectTimeout=15
       LIQUIBASE_COMMAND_USERNAME: ${{ secrets.DB_USERNAME }}
       LIQUIBASE_COMMAND_PASSWORD: ${{ secrets.DB_PASSWORD }}
+      LIQUIBASE_COMMAND_DEFAULT_SCHEMA_NAME: ${{ vars.DB_SCHEMA || 'app' }}
+      LIQUIBASE_LIQUIBASE_SCHEMA_NAME: ${{ vars.DB_SCHEMA || 'app' }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
@@ -50,9 +52,11 @@ jobs:
     timeout-minutes: 30
     environment: uat
     env:
-      LIQUIBASE_COMMAND_URL: jdbc:postgresql://${{ vars.DB_HOST }}:${{ vars.DB_PORT || '5432' }}/${{ vars.DB_NAME }}?sslmode=require&currentSchema=app&connectTimeout=15
+      LIQUIBASE_COMMAND_URL: jdbc:postgresql://${{ vars.DB_HOST }}:${{ vars.DB_PORT || '5432' }}/${{ vars.DB_NAME }}?sslmode=require&currentSchema=${{ vars.DB_SCHEMA || 'app' }}&connectTimeout=15
       LIQUIBASE_COMMAND_USERNAME: ${{ secrets.DB_USERNAME }}
       LIQUIBASE_COMMAND_PASSWORD: ${{ secrets.DB_PASSWORD }}
+      LIQUIBASE_COMMAND_DEFAULT_SCHEMA_NAME: ${{ vars.DB_SCHEMA || 'app' }}
+      LIQUIBASE_LIQUIBASE_SCHEMA_NAME: ${{ vars.DB_SCHEMA || 'app' }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
@@ -78,9 +82,11 @@ jobs:
     timeout-minutes: 30
     environment: prod
     env:
-      LIQUIBASE_COMMAND_URL: jdbc:postgresql://${{ vars.DB_HOST }}:${{ vars.DB_PORT || '5432' }}/${{ vars.DB_NAME }}?sslmode=require&currentSchema=app&connectTimeout=15
+      LIQUIBASE_COMMAND_URL: jdbc:postgresql://${{ vars.DB_HOST }}:${{ vars.DB_PORT || '5432' }}/${{ vars.DB_NAME }}?sslmode=require&currentSchema=${{ vars.DB_SCHEMA || 'app' }}&connectTimeout=15
       LIQUIBASE_COMMAND_USERNAME: ${{ secrets.DB_USERNAME }}
       LIQUIBASE_COMMAND_PASSWORD: ${{ secrets.DB_PASSWORD }}
+      LIQUIBASE_COMMAND_DEFAULT_SCHEMA_NAME: ${{ vars.DB_SCHEMA || 'app' }}
+      LIQUIBASE_LIQUIBASE_SCHEMA_NAME: ${{ vars.DB_SCHEMA || 'app' }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
