@@ -1,0 +1,7 @@
+databaseChangeLog:
+  - include:
+      file: changes/001-create-customers.sql
+      relativeToChangelogFile: true
+  - include:
+      file: changes/002-add-phone-number.sql
+      relativeToChangelogFile: true

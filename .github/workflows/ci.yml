@@ -1,0 +1,101 @@
+name: Database migrations
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+# Finish the current DEV → UAT → PROD release before starting another.
+concurrency:
+  group: database-release
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  dev:
+    runs-on: [self-hosted, Linux, X64, liquibase-rds]
+    timeout-minutes: 30
+    environment: dev
+    env:
+      LIQUIBASE_COMMAND_URL: jdbc:postgresql://${{ vars.DB_HOST }}:${{ vars.DB_PORT || '5432' }}/${{ vars.DB_NAME }}?sslmode=verify-full&sslrootcert=/opt/liquibase/certs/global-bundle.pem&currentSchema=app&connectTimeout=15
+      LIQUIBASE_COMMAND_USERNAME: ${{ secrets.DB_USERNAME }}
+      LIQUIBASE_COMMAND_PASSWORD: ${{ secrets.DB_PASSWORD }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Validate changelog
+        run: liquibase validate
+      - name: Preview SQL
+        run: liquibase update-sql
+      - name: Save rollback point
+        run: |
+          ROLLBACK_TAG="before-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          liquibase tag --tag="$ROLLBACK_TAG"
+          echo "Rollback tag: $ROLLBACK_TAG" >> "$GITHUB_STEP_SUMMARY"
+      - name: Apply migrations to DEV
+        run: liquibase update
+      - name: Show pending changes
+        run: liquibase status
+
+  uat:
+    needs: dev
+    runs-on: [self-hosted, Linux, X64, liquibase-rds]
+    timeout-minutes: 30
+    environment: uat
+    env:
+      LIQUIBASE_COMMAND_URL: jdbc:postgresql://${{ vars.DB_HOST }}:${{ vars.DB_PORT || '5432' }}/${{ vars.DB_NAME }}?sslmode=verify-full&sslrootcert=/opt/liquibase/certs/global-bundle.pem&currentSchema=app&connectTimeout=15
+      LIQUIBASE_COMMAND_USERNAME: ${{ secrets.DB_USERNAME }}
+      LIQUIBASE_COMMAND_PASSWORD: ${{ secrets.DB_PASSWORD }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Validate changelog
+        run: liquibase validate
+      - name: Preview SQL
+        run: liquibase update-sql
+      - name: Save rollback point
+        run: |
+          ROLLBACK_TAG="before-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          liquibase tag --tag="$ROLLBACK_TAG"
+          echo "Rollback tag: $ROLLBACK_TAG" >> "$GITHUB_STEP_SUMMARY"
+      - name: Apply migrations to UAT
+        run: liquibase update
+      - name: Show pending changes
+        run: liquibase status
+
+  prod:
+    needs: uat
+    runs-on: [self-hosted, Linux, X64, liquibase-rds]
+    timeout-minutes: 30
+    environment: prod
+    env:
+      LIQUIBASE_COMMAND_URL: jdbc:postgresql://${{ vars.DB_HOST }}:${{ vars.DB_PORT || '5432' }}/${{ vars.DB_NAME }}?sslmode=verify-full&sslrootcert=/opt/liquibase/certs/global-bundle.pem&currentSchema=app&connectTimeout=15
+      LIQUIBASE_COMMAND_USERNAME: ${{ secrets.DB_USERNAME }}
+      LIQUIBASE_COMMAND_PASSWORD: ${{ secrets.DB_PASSWORD }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Validate changelog
+        run: liquibase validate
+      - name: Preview SQL
+        run: liquibase update-sql
+      - name: Save rollback point
+        run: |
+          ROLLBACK_TAG="before-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          liquibase tag --tag="$ROLLBACK_TAG"
+          echo "Rollback tag: $ROLLBACK_TAG" >> "$GITHUB_STEP_SUMMARY"
+      - name: Apply migrations to PROD
+        run: liquibase update
+      - name: Show pending changes
+        run: liquibase status

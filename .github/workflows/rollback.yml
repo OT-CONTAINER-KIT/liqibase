@@ -1,0 +1,65 @@
+name: Rollback database
+run-name: Rollback ${{ inputs.environment }} to ${{ inputs.rollback_tag }} (${{ inputs.mode }})
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Database to roll back
+        type: choice
+        options: [dev, uat, prod]
+        required: true
+      rollback_tag:
+        description: Copy the before-RUN_ID-ATTEMPT tag from the deployment summary
+        type: string
+        required: true
+      mode:
+        description: Preview SQL first, then dispatch again with apply
+        type: choice
+        options: [preview, apply]
+        default: preview
+        required: true
+
+permissions:
+  contents: read
+
+# Same group as deployment: never migrate and roll back at the same time.
+concurrency:
+  group: database-release
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  rollback:
+    if: github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, Linux, X64, liquibase-rds]
+    timeout-minutes: 30
+    environment: ${{ inputs.environment }}
+    env:
+      LIQUIBASE_COMMAND_URL: jdbc:postgresql://${{ vars.DB_HOST }}:${{ vars.DB_PORT || '5432' }}/${{ vars.DB_NAME }}?sslmode=verify-full&sslrootcert=/opt/liquibase/certs/global-bundle.pem&currentSchema=app&connectTimeout=15
+      LIQUIBASE_COMMAND_USERNAME: ${{ secrets.DB_USERNAME }}
+      LIQUIBASE_COMMAND_PASSWORD: ${{ secrets.DB_PASSWORD }}
+      ROLLBACK_TAG: ${{ inputs.rollback_tag }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Check rollback tag format
+        run: |
+          [[ "$ROLLBACK_TAG" =~ ^before-[0-9]+-[0-9]+$ ]] || {
+            echo 'Copy the rollback tag from the deployment summary.' >&2
+            exit 1
+          }
+      - name: Validate changelog
+        run: liquibase validate
+      - name: Preview rollback SQL
+        run: liquibase rollback-sql --tag="$ROLLBACK_TAG"
+      - name: Apply rollback
+        if: inputs.mode == 'apply'
+        run: liquibase rollback --tag="$ROLLBACK_TAG"
+      - name: Show pending changes
+        run: liquibase status
