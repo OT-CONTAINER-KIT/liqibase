@@ -1,0 +1,35 @@
+name: Migrate with Liquibase
+description: Runs the full Liquibase migration sequence (validate, update-sql, tag, update, status) inside one container run
+inputs:
+  image:
+    description: Liquibase image to run
+    required: false
+    default: liquibase-lab:5.0.4
+  rollback_tag:
+    description: Tag to save before applying migrations
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Migrate
+      shell: bash
+      run: |
+        docker run --rm --entrypoint sh \
+          -v "$GITHUB_WORKSPACE:/liquibase/changelog" \
+          -w /liquibase/changelog \
+          -e LIQUIBASE_COMMAND_URL="$LIQUIBASE_COMMAND_URL" \
+          -e LIQUIBASE_COMMAND_USERNAME="$LIQUIBASE_COMMAND_USERNAME" \
+          -e LIQUIBASE_COMMAND_PASSWORD="$LIQUIBASE_COMMAND_PASSWORD" \
+          -e LIQUIBASE_COMMAND_DEFAULT_SCHEMA_NAME="$LIQUIBASE_COMMAND_DEFAULT_SCHEMA_NAME" \
+          -e LIQUIBASE_LIQUIBASE_SCHEMA_NAME="$LIQUIBASE_LIQUIBASE_SCHEMA_NAME" \
+          -e ROLLBACK_TAG="${{ inputs.rollback_tag }}" \
+          "${{ inputs.image }}" -c 'set -e
+            liquibase validate
+            liquibase update-sql
+            liquibase tag --tag="$ROLLBACK_TAG"
+            liquibase update
+            liquibase status'
+    - name: Record rollback tag
+      shell: bash
+      run: |
+        echo "Rollback tag: ${{ inputs.rollback_tag }}" >> "$GITHUB_STEP_SUMMARY"

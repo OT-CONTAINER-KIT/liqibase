@@ -32,6 +32,11 @@ defaults:
   run:
     shell: bash
 
+# Liquibase runs inside one container on the self-hosted runner.
+# Image: liquibase/liquibase:5.0.4 plus PostgreSQL JDBC 42.7.14 (see Dockerfile).
+# The rollback sequence (validate, rollback-sql, optional rollback, status)
+# lives in one reusable composite action, .github/actions/liquibase-rollback.
+
 jobs:
   rollback:
     if: github.ref == 'refs/heads/main'
@@ -39,6 +44,7 @@ jobs:
     timeout-minutes: 30
     environment: ${{ inputs.environment }}
     env:
+      LIQ_IMAGE: liquibase-lab:5.0.4
       LIQUIBASE_COMMAND_URL: jdbc:postgresql://${{ vars.DB_HOST }}:${{ vars.DB_PORT || '5432' }}/${{ vars.DB_NAME }}?sslmode=require&currentSchema=${{ vars.DB_SCHEMA || 'app' }}&connectTimeout=15
       LIQUIBASE_COMMAND_USERNAME: ${{ secrets.DB_USERNAME }}
       LIQUIBASE_COMMAND_PASSWORD: ${{ secrets.DB_PASSWORD }}
@@ -50,18 +56,17 @@ jobs:
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
+      - name: Build Liquibase image
+        run: docker build -t "$LIQ_IMAGE" .
       - name: Check rollback tag format
         run: |
           [[ "$ROLLBACK_TAG" =~ ^before-[0-9]+-[0-9]+$ ]] || {
             echo 'Copy the rollback tag from the deployment summary.' >&2
             exit 1
           }
-      - name: Validate changelog
-        run: liquibase validate
-      - name: Preview rollback SQL
-        run: liquibase rollback-sql --tag="$ROLLBACK_TAG"
-      - name: Apply rollback
-        if: inputs.mode == 'apply'
-        run: liquibase rollback --tag="$ROLLBACK_TAG"
-      - name: Show pending changes
-        run: liquibase status
+      - name: Roll back
+        uses: ./.github/actions/liquibase-rollback
+        with:
+          image: ${{ env.LIQ_IMAGE }}
+          rollback_tag: ${{ inputs.rollback_tag }}
+          mode: ${{ inputs.mode }}

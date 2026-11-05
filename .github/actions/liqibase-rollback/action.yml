@@ -1,0 +1,34 @@
+name: Roll back with Liquibase
+description: Runs the Liquibase rollback sequence (validate, rollback-sql, optional rollback, status) inside one container run
+inputs:
+  image:
+    description: Liquibase image to run
+    required: false
+    default: liquibase-lab:5.0.4
+  rollback_tag:
+    description: Tag to roll back to
+    required: true
+  mode:
+    description: preview prints the rollback SQL, apply runs it
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Roll back
+      shell: bash
+      run: |
+        docker run --rm --entrypoint sh \
+          -v "$GITHUB_WORKSPACE:/liquibase/changelog" \
+          -w /liquibase/changelog \
+          -e LIQUIBASE_COMMAND_URL="$LIQUIBASE_COMMAND_URL" \
+          -e LIQUIBASE_COMMAND_USERNAME="$LIQUIBASE_COMMAND_USERNAME" \
+          -e LIQUIBASE_COMMAND_PASSWORD="$LIQUIBASE_COMMAND_PASSWORD" \
+          -e LIQUIBASE_COMMAND_DEFAULT_SCHEMA_NAME="$LIQUIBASE_COMMAND_DEFAULT_SCHEMA_NAME" \
+          -e LIQUIBASE_LIQUIBASE_SCHEMA_NAME="$LIQUIBASE_LIQUIBASE_SCHEMA_NAME" \
+          -e ROLLBACK_TAG="${{ inputs.rollback_tag }}" \
+          -e ROLLBACK_MODE="${{ inputs.mode }}" \
+          "${{ inputs.image }}" -c 'set -e
+            liquibase validate
+            liquibase rollback-sql --tag="$ROLLBACK_TAG"
+            if [ "$ROLLBACK_MODE" = "apply" ]; then liquibase rollback --tag="$ROLLBACK_TAG"; fi
+            liquibase status'

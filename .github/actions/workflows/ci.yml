@@ -20,6 +20,13 @@ defaults:
   run:
     shell: bash
 
+# Liquibase runs inside one container per job on the self-hosted runner.
+# Image: liquibase/liquibase:5.0.4 plus PostgreSQL JDBC 42.7.14 (see Dockerfile).
+# The migration sequence (validate, update-sql, tag, update, status) lives in
+# one reusable composite action, .github/actions/liquibase-migrate, so the three
+# jobs below differ only by environment. The rollback sequence lives in
+# .github/actions/liquibase-rollback. The repo checkout is mounted into the
+# container, so it always runs the changelog from this exact commit.
 
 jobs:
   dev:
@@ -27,6 +34,7 @@ jobs:
     timeout-minutes: 30
     environment: dev
     env:
+      LIQ_IMAGE: liquibase-lab:5.0.4
       LIQUIBASE_COMMAND_URL: jdbc:postgresql://${{ vars.DB_HOST }}:${{ vars.DB_PORT || '5432' }}/${{ vars.DB_NAME }}?sslmode=require&currentSchema=${{ vars.DB_SCHEMA || 'app' }}&connectTimeout=15
       LIQUIBASE_COMMAND_USERNAME: ${{ secrets.DB_USERNAME }}
       LIQUIBASE_COMMAND_PASSWORD: ${{ secrets.DB_PASSWORD }}
@@ -37,19 +45,13 @@ jobs:
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
-      - name: Validate changelog
-        run: liquibase validate
-      - name: Preview SQL
-        run: liquibase update-sql
-      - name: Save rollback point
-        run: |
-          ROLLBACK_TAG="before-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-          liquibase tag --tag="$ROLLBACK_TAG"
-          echo "Rollback tag: $ROLLBACK_TAG" >> "$GITHUB_STEP_SUMMARY"
-      - name: Apply migrations to DEV
-        run: liquibase update
-      - name: Show pending changes
-        run: liquibase status
+      - name: Build Liquibase image
+        run: docker build -t "$LIQ_IMAGE" .
+      - name: Migrate DEV
+        uses: ./.github/actions/liquibase-migrate
+        with:
+          image: ${{ env.LIQ_IMAGE }}
+          rollback_tag: before-${{ github.run_id }}-${{ github.run_attempt }}
 
   uat:
     needs: dev
@@ -57,6 +59,7 @@ jobs:
     timeout-minutes: 30
     environment: uat
     env:
+      LIQ_IMAGE: liquibase-lab:5.0.4
       LIQUIBASE_COMMAND_URL: jdbc:postgresql://${{ vars.DB_HOST }}:${{ vars.DB_PORT || '5432' }}/${{ vars.DB_NAME }}?sslmode=require&currentSchema=${{ vars.DB_SCHEMA || 'app' }}&connectTimeout=15
       LIQUIBASE_COMMAND_USERNAME: ${{ secrets.DB_USERNAME }}
       LIQUIBASE_COMMAND_PASSWORD: ${{ secrets.DB_PASSWORD }}
@@ -67,19 +70,13 @@ jobs:
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
-      - name: Validate changelog
-        run: liquibase validate
-      - name: Preview SQL
-        run: liquibase update-sql
-      - name: Save rollback point
-        run: |
-          ROLLBACK_TAG="before-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-          liquibase tag --tag="$ROLLBACK_TAG"
-          echo "Rollback tag: $ROLLBACK_TAG" >> "$GITHUB_STEP_SUMMARY"
-      - name: Apply migrations to UAT
-        run: liquibase update
-      - name: Show pending changes
-        run: liquibase status
+      - name: Build Liquibase image
+        run: docker build -t "$LIQ_IMAGE" .
+      - name: Migrate UAT
+        uses: ./.github/actions/liquibase-migrate
+        with:
+          image: ${{ env.LIQ_IMAGE }}
+          rollback_tag: before-${{ github.run_id }}-${{ github.run_attempt }}
 
   prod:
     needs: uat
@@ -87,6 +84,7 @@ jobs:
     timeout-minutes: 30
     environment: prod
     env:
+      LIQ_IMAGE: liquibase-lab:5.0.4
       LIQUIBASE_COMMAND_URL: jdbc:postgresql://${{ vars.DB_HOST }}:${{ vars.DB_PORT || '5432' }}/${{ vars.DB_NAME }}?sslmode=require&currentSchema=${{ vars.DB_SCHEMA || 'app' }}&connectTimeout=15
       LIQUIBASE_COMMAND_USERNAME: ${{ secrets.DB_USERNAME }}
       LIQUIBASE_COMMAND_PASSWORD: ${{ secrets.DB_PASSWORD }}
@@ -97,16 +95,10 @@ jobs:
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
-      - name: Validate changelog
-        run: liquibase validate
-      - name: Preview SQL
-        run: liquibase update-sql
-      - name: Save rollback point
-        run: |
-          ROLLBACK_TAG="before-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-          liquibase tag --tag="$ROLLBACK_TAG"
-          echo "Rollback tag: $ROLLBACK_TAG" >> "$GITHUB_STEP_SUMMARY"
-      - name: Apply migrations to PROD
-        run: liquibase update
-      - name: Show pending changes
-        run: liquibase status
+      - name: Build Liquibase image
+        run: docker build -t "$LIQ_IMAGE" .
+      - name: Migrate PROD
+        uses: ./.github/actions/liquibase-migrate
+        with:
+          image: ${{ env.LIQ_IMAGE }}
+          rollback_tag: before-${{ github.run_id }}-${{ github.run_attempt }}
