@@ -57,7 +57,7 @@ jobs:
           ref: ${{ github.sha }}
           persist-credentials: false
       - name: Build Liquibase image
-        run: docker build -t "$LIQ_IMAGE" .
+        run: docker build -f docker/Dockerfile -t "$LIQ_IMAGE" .
       - name: Check rollback tag format
         run: |
           [[ "$ROLLBACK_TAG" =~ ^before-[0-9]+-[0-9]+$ ]] || {
